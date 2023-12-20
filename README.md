@@ -1,1 +1,2 @@
 # amped
+INIT
