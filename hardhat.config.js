@@ -19,20 +19,20 @@ module.exports = {
   mocha: {
     timeout: 100000000
   },
-  // networks: {
-  //     hardhat: {
-  //       forking: {
-  //         url: "https://polygon-rpc.com",
-  //         blockNumber: 41360191,
-  //       }
-  //     },
-  //     goerli: {
-  //       url: "https://rpc.ankr.com/eth_goerli",
-  //       accounts: [process.env.SECRET_KEY],
-  //     }
-  //   },
-  //   etherscan: {
-  //     apiKey: [process.env.ETHERSCAN_KEY],
-  //   },
+  networks: {
+      hardhat: {
+        forking: {
+          url: "https://polygon-rpc.com",
+          blockNumber: 51368880,
+        }
+      },
+      // goerli: {
+      //   url: "https://rpc.ankr.com/eth_goerli",
+      //   accounts: [process.env.SECRET_KEY],
+      // }
+    },
+    // etherscan: {
+    //   apiKey: [process.env.ETHERSCAN_KEY],
+    // },
     
 };

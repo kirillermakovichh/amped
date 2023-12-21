@@ -1,29 +1,37 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
 import {LibString} from "solady/src/utils/LibString.sol";
 import {Ownable} from "solady/src/auth/Ownable.sol";
+import {IArtistManagement} from "./interfaces/IArtistManagement.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-contract ArtistManagement is Ownable {
-    uint256 private trackCount;
+contract ArtistManagement is IArtistManagement, Ownable {
+    IERC20 private immutable tokenAddr;
 
-    mapping(address => bytes32) private statistic;
-    mapping(address => bytes32) private withdrawnRewards;
-
-    error InvalidTrackId(uint256 trackId);
-    error InvalidAddress();
-    error NothingToWithdraw();
+    mapping(address => uint256) public tracksCount;
+    mapping(address => bytes32) public statistic;
+    mapping(address => bytes32) public withdrawnRewards;
 
     modifier checkId(uint256 trackId) {
-        if (trackCount < trackId) revert InvalidTrackId(trackId);
+        if (tracksCount[msg.sender] < trackId) revert InvalidTrackId(trackId);
         _;
     }
 
-    constructor() payable {
+    constructor(address _tokenAddr) payable {
+        tokenAddr = IERC20(_tokenAddr);
         _initializeOwner(msg.sender);
     }
 
     //-----------------------STATISTIC--------------------------------------------
+
+    function incrementTracksCount(
+        address artist,
+        uint256 amount
+    ) external onlyOwner {
+        tracksCount[artist] += amount;
+        emit TracksCountIncreased(artist, amount);
+    }
 
     function addStatistics(
         address[] calldata _artists,
@@ -32,19 +40,17 @@ contract ArtistManagement is Ownable {
         for (uint256 i; i < _data.length; ++i) {
             statistic[_artists[i]] = _data[i];
         }
-        // trackCount += i;
     }
 
     function getStatistic(
-        bytes32 x
+        bytes32 _hash
     ) public view returns (uint128 listens, uint64 likes, uint64 comments) {
         if (msg.sender == address(0)) revert InvalidAddress();
-        // bytes32 x = statistic[_artist];
         assembly {
-            comments := x
-            mstore(0x18, x)
+            comments := _hash
+            mstore(0x18, _hash)
             listens := mload(0)
-            mstore(0x8, x)
+            mstore(0x8, _hash)
             likes := mload(0)
         }
     }
@@ -66,17 +72,23 @@ contract ArtistManagement is Ownable {
     //-----------------------URI--------------------------------------------
 
     function trackURI(
+        address artist,
         uint256 trackId
-    ) public view checkId(trackId) returns (string memory) {
+    ) external view checkId(trackId) returns (string memory) {
         string memory baseURI = _baseURI();
         return
             bytes(baseURI).length != 0
-                ? string(abi.encodePacked(baseURI, LibString.toString(trackId)))
+                ? string(
+                    abi.encodePacked(
+                        baseURI,
+                        LibString.toHexString(abi.encodePacked(artist, trackId))
+                    )
+                )
                 : "";
     }
 
     function _baseURI() public pure returns (string memory) {
-        return "ipfs://mdsoif/";
+        return "ipfs://gateaway/";
     }
 
     //-----------------------WITHDRAW--------------------------------------------
@@ -93,6 +105,10 @@ contract ArtistManagement is Ownable {
         withdrawnRewards[msg.sender] = encode(listens, likes, comments);
 
         //withdraw
+        bool success = tokenAddr.transfer(msg.sender, reward);
+        require(success);
+
+        emit Withdrawn(msg.sender, reward);
     }
 
     function checkRewards(
@@ -115,6 +131,7 @@ contract ArtistManagement is Ownable {
         likes = _likes - _withdrawnLikes;
         comments = _comments - _withdrawnComments;
 
+        //imitation of price calculation
         reward = (listens + likes + comments) * 2;
     }
 }
